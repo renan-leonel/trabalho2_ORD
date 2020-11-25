@@ -55,6 +55,22 @@ int RRN_novapag(FILE *btree){ // calcula o rrn que a nova página terá no arqui
     return (byte_offset - tam_cab) / tam_pag;
 }
 
+int posicao_chave(int chave, int chaves[], int numero_chaves){ // retorna a posição em que a chave se encontra
+    // chaves[] é o vetor que contém todas as chaves
+    // chave é a chave que desejamos saber a posição
+    // numero_chaves é a quantidade total de chaves 
+
+    int i = 0; // contador que retornará a posição da chave
+
+    while((i < numero_chaves) && (chaves[i] < chave)){
+        i++;
+    }
+    return i;
+}
+
+void insere_chave_promovida()
+
+
 
 
 
