@@ -1,13 +1,23 @@
+//////////////////////////////////////////
+// Aluno: Henrique Ribeiro Favaro       //
+// RA: 115.408                          //
+// Aluno: Pedro Henrique de Melo Costa  //
+// RA: 112.653                          //
+// Aluno: Renan Augusto Leonel          //
+// RA: 115.138                          //
+////////////////////////////////////////// 
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#define ORDER 5
 //A estrutura de árvore de ordem 5 possui páginas com, no máximo, 4 chaves e 5 filhos
-typedef struct _pagina{
-    int num_chaves; // número de chaves contidos na página
-    int chaves[5 - 1]; // vetor contendo as chaves da página
-    int filhos[5]; // vetor contendo os filhos 
-} PAGINA;
+typedef struct Leaf{
+    int keys[ORDER - 1]; // vetor contendo as chaves da página
+    int keyAmount; // número de chaves contidos na página
+    int children[ORDER]; // vetor contendo os filhos 
+} LEAF;
 
 // precisamos gravar o rrn(endereço) da página raiz no cabeçalho do arquivo
 typedef struct header{
@@ -16,16 +26,16 @@ typedef struct header{
 
 //Primeira parte da execução
 void start(char*);
-void createLeaf(PAGINA*);
-void writeLeaf(int, PAGINA*, FILE*);
+void createLeaf(LEAF*);
+void writeLeaf(int, LEAF*, FILE*);
 int readKey(FILE*, int*);
 int putKey(int, int*, FILE*);
-int put(int, inte, int*, int*, FILE*);
+int put(int, int, int*, int*, FILE*);
 int createRRN(FILE*);
-void readLeaf(int, PAGINA*, FILE*);
-int keyPosition(int, int, int);
-void putKeyAux(int, int, int, int, int*);
-void breakLeaf(int, int, PAGINA*, int*, int*, PAGINA*, FILE*);
+void readLeaf(int, LEAF*, FILE*);
+int keyPosition(int, int*, int);
+void putKeyAux(int, int, int*, int*, int*);
+void breakLeaf(int, int, LEAF*, int*, int*, LEAF*, FILE*);
 
 // Segunda parte de execução
 void printResult();
@@ -39,8 +49,10 @@ direcionando a execução para a criação da árvore-B ou para a impressão da
 mesma. Caso os argumentos estejam incorretos, informa como prosseguir para
 a execução do programa.
 */
-int main(int argc, char *argv[]){
-    if(argc < 2){
+int main(int argc, char *argv[])
+{
+    if(argc < 2)
+    {
         fprintf(stderr, "Numero incorreto de argumentos!\n");
         fprintf(stderr, "Como utilizar\n");
         fprintf(stderr, "$ %s -c arquivo_chaves\n", argv[0]);
@@ -48,15 +60,18 @@ int main(int argc, char *argv[]){
         exit(1);
     }
 
-    if(strcmp(argv[1], "-c") == 0){ // verifica se foi selecionada a opção "criação"
-        printf("Criação de uma Arvore B");
+    if(strcmp(argv[1], "-c") == 0) // verifica se foi selecionada a opção "criação"
+    {
+        printf("Criacao de uma Arvore B\n");
         start(argv[2]); //argv[2] contém o nome do arquivo de chaves 
         printf("Sucesso na criacao da Arvore B!\n");
     } 
-    else if(strcmp(argv[1], "-p") == 0){ // verifica se foi selecionada a opção "impressão"
+    else if(strcmp(argv[1], "-p") == 0) // verifica se foi selecionada a opção "impressão"
+    { 
         printResult();
     } 
-    else{
+    else
+    {
         fprintf(stderr, "A opcao \"%s\" nao é suportada!\n", argv[1]);
     }
 
@@ -69,42 +84,47 @@ primeiramente um cabeçalho e uma página raiz vazia. A função ainda faz a cha
 de outra função para a inserção dos demais elementos da árvore. Faz a abertura
 dos arquivos à serem utilizados para coleta de dados e salvamento da árvore criada.
 */
-void start(char *nome_arq){ // nome_arq é o arquivo que será passado pela linha de comando, de onde será realizada a leitura
+void start(char *arquivopassado) // nome_arq é o arquivo que será passado pela linha de comando, de onde será realizada a leitura
+{ 
     FILE *chaves; // arquivo que será utilizado para armazenar o nome_arq
     FILE *arvore; // arquivo que será utilizado para armazenar o btree.dat
 
-    arvore = fopen("btree.dat", "w + b")
-    chaves = fopen(nome_arq, "rb") // ve se o arquivo inserido na linha de comando existe
+    arvore = fopen("btree.dat", "w+b");
+    chaves = fopen(arquivopassado, "rb"); // ve se o arquivo inserido na linha de comando existe
 
     int reg_cont, i;
-    int chave;
+    int key;
     char buffer[500];
-    HEAD cab;
-    PAGINA raiz;
+    HEAD head_b;
+    LEAF root;
 
-    if(chaves == NULL){
-        fprintf(stderr, "Arquivo dados.dat não encontrado\n");
+    if(chaves == NULL)
+    {
+        fprintf(stderr, "Arquivo %s nao encontrado\n", arquivopassado);
         exit(1);
     }
-    if(arvore == NULL){
+    if(arvore == NULL)
+    {
         fprintf(stderr, "Impossivel criar o arquivo btree.dat\n");
         exit(1);
     }
 
     //o arquivo é criado vazio, acrescentando o cabeçalho e uma página raiz vazia
-    cab.root_rrn = 0;
-    fwrite(&cab, sizeof(HEAD), 1, arvore);
-    createLeaf(&raiz);
-    writeLeaf(cab.root_rrn, &raiz, arvore);
+    head_b.root_rrn = 0;
+    fwrite(&head_b, sizeof(HEAD), 1, arvore);
+    createLeaf(&root);
+    writeLeaf(head_b.root_rrn, &root, arvore);
 
-    while(readKey(chaves, &chave) > 0){
-        if(putKey(chave, &(cab.root_rrn), arvore) == 3){
-            fprintf(stderr, "A chave \"%d\" já existe\n", chave);
+    while(readKey(chaves, &key) > 0)
+    {
+        if(putKey(key, &(head_b.root_rrn), arvore) == 3)
+        {
+            fprintf(stderr, "A chave \"%d\" já existe\n", key);
         }
     }
 
     fseek(arvore, 0, SEEK_SET);
-    fwrite(&cab, sizeof(HEAD), 1, arvore);
+    fwrite(&head_b, sizeof(HEAD), 1, arvore);
 
     fclose(chaves);
     fclose(arvore);
@@ -115,15 +135,17 @@ Função que faz a criação de uma nova página com base na raiz fornecida dent
 que inicia a criação da árvore em si. Cria a página com os filhos nulos e chaves nulas,
 deixando o campo de chaves com zero, ou seja, sem chaves indicadas dentro desta página.
 */
-void createLeaf(PAGINA *pag){
+void createLeaf(LEAF *Leaf)
+{
     int i;// contador simples
 
-    for(i = 0; i < 5 - 1; i++){
-        pag -> chaves[i] = -1;
-        pag -> filhos[i] = -1;    
+    for(i = 0; i < ORDER - 1; i++)
+    {
+        Leaf -> keys[i] = -1;
+        Leaf -> children[i] = -1;    
     }
-    pag -> filhos[i] = -1;
-    pag -> num_chaves = 0;
+    Leaf -> children[i] = -1;
+    Leaf -> keyAmount = 0;
 }
 
 /*
@@ -131,10 +153,11 @@ Função que realiza a escrita de uma página dentro do árquivo de árvore, com
 RRN fornecido, e pela raíz informada, escrevendo no arquivo da árvore, a página 
 recebida por parametro.
 */
-void writeLeaf(int rrn, PAGINA *pag, FILE *arvore){
-    int offset = sizeof(HEAD) + rrn*sizeof(PAGINA);
+void writeLeaf(int rrn, LEAF *pag, FILE *arvore)
+{
+    int offset = sizeof(HEAD) + rrn*sizeof(LEAF);
     fseek(arvore, offset, SEEK_SET);
-    fwrite(pag, sizeof(PAGINA), 1, arvore);
+    fwrite(pag, sizeof(LEAF), 1, arvore);
 }
 
 /*
@@ -142,7 +165,8 @@ Função que recebe um ponteiro de arquivo como parâmetro e utiliza o mesmo par
 uma leitura de qual chave está contida na posição informada pelo ponteiro de arquivo
 passado no parâmetro. Retorna como inteiro a chave coletada.
 */
-int readKey(FILE *fd, int *chave){
+int readKey(FILE *fd, int *chave)
+{
     return fscanf(fd, "%d", chave);
 }
 
@@ -152,29 +176,33 @@ da árvore para realizar as escritas. Utiliza a chamada de uma outra função pa
 inserir a chave, utilizando do retorno desta para decidir se a pagina da inserção foi dividida ou
 não.
 */
-int putKey(int chave, int *root_rrn, FILE *arvore){
-    PAGINA raiz;
-    int chave_pro, filho_d_pro;
-    int retorno;
+int putKey(int chave, int *root_rrn, FILE *arvore)
+{
+    LEAF raiz;
+    int promotionKey, sonDPromotion;
+    int sendBack;
 
-    retorno = put(*root_rrn, chave, &chave_pro, &filho_d_pro, arvore);
+    sendBack = put(*root_rrn, chave, &promotionKey, &sonDPromotion, arvore);
 
-    if(retorno == 3){
+    if(sendBack == 3)
+    {
         return 3;
-    } else if(retorno == 1){
-        PAGINA novaraiz;
+    } 
+    else if(sendBack == 1)
+    {
+        LEAF newBase;
         //a página raiz foi dividida e agora temos uma promoção...
         //devemos criar uma nova raiz, inserir a chave promovida (chave_pro) e
         //respectivos filhos (esquerdo = raiz antiga; direito = filho_d_pro).
-        createLeaf(&novaraiz);
-        novaraiz.chaves[0] = chave_pro;
-        novaraiz.filhos[0] = *root_rrn;
-        novaraiz.filhos[1] = filho_d_pro;
-        novaraiz.num_chaves = 1;
+        createLeaf(&newBase);
+        newBase.keys[0] = promotionKey;
+        newBase.children[0] = *root_rrn;
+        newBase.children[1] = sonDPromotion;
+        newBase.keyAmount = 1;
 
         //atualiza o root_rrn (obter novo rrn) e escreve a nova página raiz no arquivo.
         *root_rrn = createRRN(arvore);
-        writeLeaf(*root_rrn, &novaraiz, arvore);
+        writeLeaf(*root_rrn, &newBase, arvore);
     }
     return 2;
 }
@@ -186,38 +214,47 @@ as operações, caso seja necessária a divisão, faz as chamadas para as demais
 definido o local de inserção da página, e conseguinte, sua real escrita no arquivo por meio de
 outra chamada de função especifica para tal ação. 
 */
-int put(int rrn_atual, int chave, int *chave_pro, int *filho_d_pro, FILE* arvore){
-    PAGINA pag, novapag;
+int put(int rrn_atual, int chave, int *promotionKey, int *sonDPromotion, FILE* arvore)
+{
+    LEAF pag, newLeaf;
     int chv_pro, rrn_pro;
     int pos;
     int retorno;
 
-    if(rrn_atual == -1){
-        *chave_pro = chave;
-        *filho_d_pro = -1;
+    if(rrn_atual == -1)
+    {
+        *promotionKey = chave;
+        *sonDPromotion = -1;
         return 1;
     }
 
     readLeaf(rrn_atual, &pag, arvore);
 
-    pos = keyPosition(chave, pag.chaves, pag.num_chaves);
-    if(pos < pag.num_chaves && pag.chaves[pos] == chave){
+    pos = keyPosition(chave, pag.keys, pag.keyAmount);
+    if(pos < pag.keyAmount && pag.keys[pos] == chave)
+    {
         return 3;
     }
 
-    retorno = put(pag.filhos[pos], chave, &chv_pro, &rrn_pro, arvore);
+    retorno = put(pag.children[pos], chave, &chv_pro, &rrn_pro, arvore);
 
-    if(retorno == 0 || retorno == 3){
+    if(retorno == 0 || retorno == 3)
+    {
         return retorno;
-    } else{
-        if(pag.num_chaves < 5 - 1){
-            putKeyAux(chv_pro, rrn_pro, pag.chaves, pag.filhos, &(pag.num_chaves));
+    } 
+    else
+    {
+        if(pag.keyAmount < ORDER - 1)
+        {
+            putKeyAux(chv_pro, rrn_pro, pag.keys, pag.children, &(pag.keyAmount));
             writeLeaf(rrn_atual, &pag, arvore);
             return 0;
-        } else{
-            breakLeaf(chv_pro, rrn_pro, &pag, chave_pro, filho_d_pro, &novapag, arvore);
+        } 
+        else
+        {
+            breakLeaf(chv_pro, rrn_pro, &pag, promotionKey, sonDPromotion, &newLeaf, arvore);
             writeLeaf(rrn_atual, &pag, arvore);
-            writeLeaf(*filho_d_pro, &novapag, arvore);
+            writeLeaf(*sonDPromotion, &newLeaf, arvore);
             return 1;
         }
     }
@@ -228,11 +265,12 @@ Função a qual irá fazer seek com o arquivo até o final do mesmo, coletando q
 já inseridos, após, irá calcular qual o RRN utilizado para uma nova insersão com base nas páginas
 já existentes. Retorna o numero do RRN à ser criado.
 */
-int createRRN(FILE *arvore){ // calcula o rrn que a nova página terá no arquivo btree
+int createRRN(FILE *arvore) // calcula o rrn que a nova página terá no arquivo btree
+{ 
     int offset;
     fseek(arvore, 0, SEEK_END);
     offset = ftell(arvore);
-    return ((offset - sizeof(HEAD))/sizeof(PAGINA));
+    return (offset - sizeof(HEAD))/sizeof(LEAF);
 }
 
 /*
@@ -240,10 +278,11 @@ Função que recebe o RRN de uma página, o ponteiro da página e o ponteiro do 
 Irá fazer um seek com base no RRN dentro do arquivo da árvore, e após, fará a leitura dos dados
 contidos na página à ser consultada, salvando os dados coletados no ponteiro da página.
 */
-void readLeaf(int rrn, PAGINA *pag, FILE *arvore){
-    int offset = sizeof(HEAD) + rrn*sizeof(PAGINA);
+void readLeaf(int rrn, LEAF *pag, FILE *arvore)
+{
+    int offset = sizeof(HEAD) + rrn*sizeof(LEAF);
     fseek(arvore, offset, SEEK_SET);
-    fread(pag, sizeof(PAGINA), 1, arvore);
+    fread(pag, sizeof(LEAF), 1, arvore);
 }
 
 /*
@@ -251,13 +290,15 @@ Função recebendo a chave a ser consultada, as chaves presentes na página, e o
 contidas na mesma. Faz uma verificação chave a chave até encontrar a requerida, retornando sua
 posição.
 */
-int keyPosition(int chave, int chaves[], int num_chaves){ // retorna a posição em que a chave se encontra
+int keyPosition(int chave, int chaves[], int keyAmount) // retorna a posição em que a chave se encontra
+{ 
     // chaves[] é o vetor que contém todas as chaves
     // chave é a chave que desejamos saber a posição
-    // num_chaves é a quantidade total de chaves 
+    // keyAmount é a quantidade total de chaves 
 
     int i = 0;
-    while((i < num_chaves) && (chaves[i] < chave)){
+    while(i < keyAmount && chaves[i] < chave)
+    {
         i++;
     }
     return i;
@@ -270,16 +311,18 @@ da chave à ser operada, após isso reduz dentro das chaves anteriores uma posi�
 insere a nova chave na página depois das chaves já existentes e o RRN do filho após a posição 
 encontrada.
 */
-void putKeyAux(int chv_pro, int rrn_pro, int chaves[], int filhos[], int *num_chaves){
+void putKeyAux(int chv_pro, int rrn_pro, int chaves[], int children[], int *keyAmount)
+{
     int pos, k;
-    pos = keyPosition(chv_pro, chaves, *num_chaves);
-    for(k = *num_chaves; k > pos; k--){
+    pos = keyPosition(chv_pro, chaves, *keyAmount);
+    for(k = *keyAmount; k > pos; k--)
+    {
         chaves[k] = chaves[k - 1];
-        filhos[k + 1] = filhos[k];
+        children[k + 1] = children[k];
     }
     chaves[pos] = chv_pro;
-    filhos[pos + 1] = rrn_pro;
-    (*num_chaves)++;
+    children[pos + 1] = rrn_pro;
+    (*keyAmount)++;
 }
 
 /*
@@ -289,45 +332,49 @@ anteriores à chave removida e deixa-os na página original, faz a copia do filh
 para a página criada, e, por fim, coloca o RRN do filho da direita da pagina original como sendo
 a nova página.
 */
-void breakLeaf(int chave_i, int rrn_i, PAGINA *pag, int *chave_pro, int *filho_d_pro, PAGINA *novapag, FILE *arvore){
-    int pagaux_chaves[5], pagaux_filhos[5 + 1], pagaux_num_chaves;
-    int i, med;
+void breakLeaf(int iKey, int iRRN, LEAF *pag, int *promotionKey, int *sonDPromotion, LEAF *newLeaf, FILE *arvore)
+{
+    int nextKeys[ORDER], nextChildren[ORDER + 1], nextKeyNumber;
+    int i, middle;
 
     //copia chaves e filhos da página original para a página auxiliar
-    for(i = 0; i < pag->num_chaves; i++){
-        pagaux_chaves[i] = pag->chaves[i];
-        pagaux_filhos[i] = pag->filhos[i];
+    for(i = 0; i < pag->keyAmount; i++)
+    {
+        nextKeys[i] = pag->keys[i];
+        nextChildren[i] = pag->children[i];
     }
-    pagaux_filhos[i] = pag->filhos[i];
-    pagaux_num_chaves = pag -> num_chaves;
+    nextChildren[i] = pag->children[i];
+    nextKeyNumber = pag -> keyAmount;
 
     //insere a chave na página auxiliar
-    putKeyAux(chave_i, rrn_i, pagaux_chaves, pagaux_filhos, &(pagaux_num_chaves));
+    putKeyAux(iKey, iRRN, nextKeys, nextChildren, &(nextKeyNumber));
 
     //a chave a ser promovida da divisão se encontra na mediana da página auxiliar
-    med = pagaux_num_chaves/2;
-    *chave_pro = pagaux_chaves[med];
+    middle = nextKeyNumber/2;
+    *promotionKey = nextKeys[middle];
 
     //copia chaves e filhos localizados antes da chave promovida para a página original.
     createLeaf(pag);
-    for(i = 0; i < med; i++){
-        pag->chaves[i] = pagaux_chaves[i];
-        pag->filhos[i] = pagaux_filhos[i];
-        pag->num_chaves++;
+    for(i = 0; i < middle; i++)
+    {
+        pag->keys[i] = nextKeys[i];
+        pag->children[i] = nextChildren[i];
+        pag->keyAmount++;
     }
-    pag->filhos[i] = pagaux_filhos[i];
+    pag->children[i] = nextChildren[i];
 
     //copia chaves e filhos localizados após a chave promovida para a nova página
-    createLeaf(novapag);
-    for(i = med + 1; i < pagaux_num_chaves; i++){
-        novapag->chaves[novapag->num_chaves] = pagaux_chaves[i];
-        novapag->filhos[novapag->num_chaves] = pagaux_filhos[i];
-        novapag->num_chaves++;
+    createLeaf(newLeaf);
+    for(i = middle + 1; i < nextKeyNumber; i++)
+    {
+        newLeaf->keys[newLeaf->keyAmount] = nextKeys[i];
+        newLeaf->children[newLeaf->keyAmount] = nextChildren[i];
+        newLeaf->keyAmount++;
     }
-    novapag->filhos[novapag->num_chaves] = pagaux_filhos[i];
+    newLeaf->children[newLeaf->keyAmount] = nextChildren[i];
 
     //o filho da direita da chave promovida é a nova página
-    *filho_d_pro = createRRN(arvore);
+    *sonDPromotion = createRRN(arvore);
 }
 
 /*
@@ -336,11 +383,13 @@ na árvore-B. Faz a consulta se possivel abrir o arquivo da árvore, caso seja p
 funções para executarem as impressões da árvore e de suas estatisticas. Ao fim, fecha o arquivo 
 da árvore.
 */
-void printResult(){
+void printResult()
+{
     FILE *arvore;
-    arvore = fopen("btree.dat", "rb")
+    arvore = fopen("btree.dat", "rb");
 
-    if(arvore == NULL){
+    if(arvore == NULL)
+    {
         fprintf(stderr, "Nao é possivel a abertura do arquivo btree.dat\n");
         exit(1);
     }
@@ -357,35 +406,47 @@ na tela do usuário. Ao percorrer as páginas, utiliza-se de seeks no arquivo co
 informada no cabeçalho, apos isso faz seeks com o RRN de cada página incrementado em 1 unidade a
 cada impressao realizada até chegar na raiz.
 */
-void printTree(FILE *arvore){
-    HEAD cab;
-    PAGINA pag;
+void printTree(FILE *arvore)
+{
+    HEAD head_b;
+    LEAF leaf;
     int i, rrn = 0;
     fseek(arvore, 0, SEEK_SET);
-    fread(&cab, sizeof(HEAD), 1, arvore);
+    fread(&head_b, sizeof(HEAD), 1, arvore);
     fseek(arvore, sizeof(HEAD), SEEK_SET);
-    while(fread(&pag, sizeof(PAGINA), 1, arvore) > 0){
-        if(rrn == cab.root_rrn){
-            printf("[Pagina Raiz]\n");
+    while(fread(&leaf, sizeof(LEAF), 1, arvore) > 0)
+    {
+        if(rrn == head_b.root_rrn)
+        {
+            printf("\n\n\n[----------Pagina Raiz----------]\n");
         }
         printf("-> Pagina %d\n", rrn);
 
         printf("-> Chaves: ");
-        for(i = 0; i < pag.num_chaves; i++){
-            printf("%d | ", pag.chaves[i]);
+        for(i = 0; i < leaf.keyAmount-1; i++)
+        {
+            printf("%d | ", leaf.keys[i]);
         }
-        printf("%d | ", pag.chaves[i]);
+        printf("%d | \n", leaf.keys[i]);
 
         printf("-> Filhos: ");
-        for(i = 0; i < pag.num_chaves; i++){
-            printf("%d | ", pag.filhos[i]);
+        for(i = 0; i < leaf.keyAmount; i++)
+        {
+            printf("%d | ", leaf.children[i]);
         }
-        printf("%d\n", pag.filhos[i]);
-
-        if(rrn == cab.root_rrn){
-            printf("\n\n");
+        if(rrn == head_b.root_rrn)
+        {
+            printf("%d\n", leaf.children[i]);
+        } else
+        {
+            printf("%d\n\n", leaf.children[i]);
         }
-        printf("\n");
+        
+        if(rrn == head_b.root_rrn)
+        {
+            printf("[-------------------------------]\n");
+            printf("\n\n\n\n");
+        }
         rrn++;
     }
 }
@@ -395,22 +456,24 @@ Função utilizada para a impressão dos dados de uma árvore, recebendo o arqui
 fazendo a leitura das páginas e incrimentando a quantidade de paginas e de suas chaves. Para impressão,
 na altura da arvore faz a chamada de uma outra função que verifica tal dado.
 */
-void printStatistics(FILE *arvore){
-    int qtd_chaves = 0, qtd_paginas = 0;
-    PAGINA pag;
+void printStatistics(FILE *arvore)
+{
+    int keyAmount = 0, leafAmount = 0;
+    LEAF leaf;
 
     fseek(arvore, sizeof(HEAD), SEEK_SET);
-    while(fread(&pag, sizeof(PAGINA), 1, arvore) > 0){
-        qtd_paginas++;
-        qtd_chaves += pag.num_chaves;
+    while(fread(&leaf, sizeof(LEAF), 1, arvore) > 0)
+    {
+        leafAmount++;
+        keyAmount += leaf.keyAmount;
     }
 
     printf("\n\n");
     printf("[Caracteristicas da Arvore]\n");
     printf("-> Altura: %d\n", heightResult(arvore));
-    printf("-> Quantidade de chaves: %d\n", qtd_chaves);
-    printf("-> Quantidade de paginas: %d\n", qtd_paginas);
-    printf("-> Taxa de ocupacao: %.2f%%\n", 100*((float)qtd_chaves)/(qtd_paginas*(5 - 1)));
+    printf("-> Quantidade de chaves: %d\n", keyAmount);
+    printf("-> Quantidade de paginas: %d\n", leafAmount);
+    printf("-> Taxa de ocupacao: %.2f%%\n", 100*((float)keyAmount)/(leafAmount*(ORDER - 1)));
 }
 
 /*
@@ -418,17 +481,19 @@ Função que verifica a altura de uma árvore com base no arquivo passado por pa
 cada folha e incrementa a altura da árvore gradualmente com base nas leituras realizadas das páginas. 
 Retorna a altura encontrada para a função de impressão das estatisticas da árvore.
 */
-int heightResult(FILE *arvore){
-    HEAD cab;
-    PAGINA pag;
-    int i, rrn = 0, altura = -1;
+int heightResult(FILE *arvore)
+{
+    HEAD head_b;
+    LEAF leaf;
+    int i, rrn = 0, height = -1;
     fseek(arvore, 0 , SEEK_SET);
-    fread(&cab, sizeof(HEAD), 1, arvore);
-    rrn = cab.root_rrn;
-    while(rrn != -1){
-        readLeaf(rrn, &pag, arvore);
-        rrn = pag.filhos[0];
-        altura++;
+    fread(&head_b, sizeof(HEAD), 1, arvore);
+    rrn = head_b.root_rrn;
+    while(rrn != -1)
+    {
+        readLeaf(rrn, &leaf, arvore);
+        rrn = leaf.children[0];
+        height++;
     }
-    return altura;
+    return height;
 }
